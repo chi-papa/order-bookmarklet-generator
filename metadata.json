@@ -1,0 +1,6 @@
+{
+  "name": "楽天RMS受注コピーブックマークレットジェネレーター",
+  "description": "楽天RMS（受注管理画面）から注文情報をワンクリックでコピーし、エクセル等に各項目が別々のセルとして貼り付けられるようにするブックマークレットの作成・テストツールです。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
