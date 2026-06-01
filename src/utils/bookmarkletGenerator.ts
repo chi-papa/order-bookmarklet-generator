@@ -59,24 +59,39 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
   // --- 2. Extract Header Info ---
   
   // 1) Order Number (受注番号)
-  // Rakuten order number has a strict format: ShopID-YYYYMMDD-Serial (e.g., 123456-20260531-0123456789)
   var orderNumber = '';
-  // Match any 3-part hyphen-separated sequence where middle is 8 digits
-  var bodyText = document.body.innerText || '';
-  var orderNoMatch = bodyText.match(/(\\d+-2\\d{7}-\\d+)/);
-  if (orderNoMatch) {
-    orderNumber = orderNoMatch[1];
-  } else {
-    orderNumber = findValueByLabel(['受注番号', '注文番号', '注文ID']);
+  var orderEl = document.querySelector('.pull-left li');
+  if (orderEl) {
+    orderNumber = cleanText(orderEl.textContent);
+    var cleanNo = orderNumber.match(/(\d+-\d+-\d+)/);
+    if (cleanNo) orderNumber = cleanNo[1];
+  }
+  if (!orderNumber) {
+    var bodyText = document.body.innerText || '';
+    var orderNoMatch = bodyText.match(/(\\d+-2\\d{7}-\\d+)/);
+    if (orderNoMatch) {
+      orderNumber = orderNoMatch[1];
+    } else {
+      orderNumber = findValueByLabel(['受注番号', '注文番号', '注文ID']);
+    }
   }
   
   // 2) Order Date (注文日)
   var orderDate = '';
-  var dateMatch = bodyText.match(/(20\\d{2}[/年]\\d{1,2}[/月]\\d{1,2}[日]?\\s*\\d{1,2}:\\d{1,2})/);
-  if (dateMatch) {
-    orderDate = cleanText(dateMatch[1]);
-  } else {
-    orderDate = findValueByLabel(['注文日', '注文日時', '受注日時', '受付日時']);
+  var orderDateEl = document.querySelector('.pull-left li + li');
+  if (orderDateEl) {
+    var dateTxt = cleanText(orderDateEl.textContent);
+    var cleanDt = dateTxt.match(/(20\\d{2}[/年]\\d{1,2}[/月]\\d{1,2}[日]?\\s*\\d{1,2}:\\d{1,2})/);
+    if (cleanDt) orderDate = cleanDt[1];
+  }
+  if (!orderDate) {
+    var bodyText = document.body.innerText || '';
+    var dateMatch = bodyText.match(/(20\\d{2}[/年]\\d{1,2}[/月]\\d{1,2}[日]?\\s*\\d{1,2}:\\d{1,2})/);
+    if (dateMatch) {
+      orderDate = cleanText(dateMatch[1]);
+    } else {
+      orderDate = findValueByLabel(['注文日', '注文日時', '受注日時', '受付日時']);
+    }
   }
   if (!orderDate) {
     // try to fallback to any date format
@@ -86,20 +101,21 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
 
   // 3) Orderer Name (注文者)
   var ordererName = '';
-  // Standard RMS uses containers or headers
-  var ordererSection = findValueByLabel(['注文者情報', '注文者']);
-  if (ordererSection) {
-    // Extract first 1-2 lines (usually Name is followed by furigana or address)
-    ordererName = ordererSection.split(/[\\r\\n]/)[0].replace(/様.*$/, '').trim();
+  var nameEls = document.querySelectorAll('.rms-content-order-details-contact-info-names');
+  if (nameEls && nameEls.length > 0) {
+    ordererName = cleanText(nameEls[0].textContent).replace(/様.*$/, '').trim();
   }
   if (!ordererName) {
-    // Look directly inside specific tables/selectors
-    // Class names frequently used in Rakuten RMS details:
+    var ordererSection = findValueByLabel(['注文者情報', '注文者']);
+    if (ordererSection) {
+      ordererName = ordererSection.split(/[\\r\\n]/)[0].replace(/様.*$/, '').trim();
+    }
+  }
+  if (!ordererName) {
     var el = document.querySelector('.orderer-name, [class*="orderer"] .name, [class*="customer"] .name');
     if (el) ordererName = cleanText(el.textContent);
   }
   if (!ordererName) {
-    // General label extraction
     ordererName = findValueByLabel(['注文者様', '注文者氏名', '注文者']);
     if (ordererName) {
       ordererName = ordererName.split(/[（\\(,\\s]/)[0].replace(/様$/, '');
@@ -108,16 +124,35 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
 
   // 4) Recipient / Destination Address/Name (送り先 / お届け先)
   var recipientName = '';
-  var recipientDest = findValueByLabel(['送付先', 'お届け先', '配送先']);
-  if (recipientDest) {
-    // Recipient name is often the first line of the send-to section before address or after zip
-    var lines = recipientDest.split(/[\\r\\n]/).map(line => cleanText(line)).filter(Boolean);
-    recipientName = lines[0] || '';
-    if (recipientName.match(/^[\\d〒\\-]/)) {
-      // If first line is a zip code, take the next non-empty line as name or seek name pattern
-      recipientName = lines.find(line => !line.match(/^[\\d〒〒\\-\\s]+$/) && line.indexOf('様') !== -1) || lines[1] || '';
+  var recipientAddress = '';
+  var recipientPhone = '';
+
+  var wrapper = document.querySelector('.rms-row-wrapper');
+  if (wrapper) {
+    var recEl = wrapper.querySelector('.rms-content-order-details-contact-info-names');
+    if (recEl) recipientName = cleanText(recEl.textContent).replace(/様.*$/, '').trim();
+    
+    var addrEl = wrapper.querySelector('.address');
+    if (addrEl) recipientAddress = cleanText(addrEl.textContent);
+    
+    var phoneEl = wrapper.querySelector('.phone');
+    if (phoneEl) recipientPhone = cleanText(phoneEl.textContent);
+  }
+
+  if (!recipientName) {
+    var recipientDest = findValueByLabel(['送付先', 'お届け先', '配送先']);
+    if (recipientDest) {
+      var lines = recipientDest.split(/[\\r\\n]/).map(line => cleanText(line)).filter(Boolean);
+      recipientName = lines[0] || '';
+      if (recipientName.match(/^[\\d〒\\-]/)) {
+        recipientName = lines.find(line => !line.match(/^[\\d〒〒\\-\\s]+$/) && line.indexOf('様') !== -1) || lines[1] || '';
+      }
+      recipientName = recipientName.replace(/様.*$/, '').trim();
+      
+      if (lines.length > 1) {
+        recipientAddress = lines.slice(1).join(' ').replace(recipientPhone, '').trim();
+      }
     }
-    recipientName = recipientName.replace(/様.*$/, '').trim();
   }
   if (!recipientName) {
     var el = document.querySelector('.recipient-name, .delivery-name, [class*="recipient"] .name, [class*="delivery"] .name');
@@ -129,9 +164,24 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
       recipientName = recipientName.split(/[（\\(,\\s]/)[0].replace(/様$/, '');
     }
   }
-  // Fallback if still empty, use orderer name
   if (!recipientName) {
     recipientName = ordererName;
+  }
+
+  if (!recipientAddress) {
+    var el = document.querySelector('.recipient-address, .delivery-address, [class*="recipient"] .address, [class*="delivery"] .address, .address');
+    if (el) recipientAddress = cleanText(el.textContent);
+  }
+  if (!recipientAddress) {
+    recipientAddress = findValueByLabel(['送付先住所', 'お届け先住所', '住所']);
+  }
+
+  if (!recipientPhone) {
+    var el = document.querySelector('.recipient-phone, .delivery-phone, [class*="recipient"] .phone, [class*="delivery"] .phone, .phone');
+    if (el) recipientPhone = cleanText(el.textContent);
+  }
+  if (!recipientPhone) {
+    recipientPhone = findValueByLabel(['送付先電話番号', 'お届け先電話番号', '電話番号', '電話', 'TEL', 'tel']);
   }
 
   // --- 3. Extract Products & Quantities ---
@@ -309,7 +359,7 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
   
   // Headers (Optional)
   if (${config.includeHeader}) {
-    rows.push(['注文日', '受注番号', '注文者', '送り先（お届け先）', '商品名', '注文個数', 'メーカー記号（商品記号）'].join('\\t'));
+    rows.push(['注文日', '受注番号', '注文者', '送り先（お届け先）', '送り先住所', '送り先電話番号', '商品名', '注文個数', 'メーカー記号（商品記号）'].join('\\t'));
   }
 
   var isMultiRows = ${config.format === 'multi-rows'};
@@ -323,18 +373,22 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
         orderNumber || '',
         ordererName || '',
         recipientName || '',
+        recipientAddress || '',
+        recipientPhone || '',
         p.name || '',
         p.qtyVal,
         p.manufacturerCode || ''
       ].join('\\t'));
     });
   } else {
-    // Single row: [Date, Number, Orderer, Recipient, Item1_Name, Item1_Qty, Item1_Mfg, Item2_Name, Item2_Qty, Item2_Mfg...]
+    // Single row: [Date, Number, Orderer, Recipient, Address, Phone, Item1_Name, Item1_Qty, Item1_Mfg, Item2_Name, Item2_Qty, Item2_Mfg...]
     var colData = [
       orderDate || '',
       orderNumber || '',
       ordererName || '',
-      recipientName || ''
+      recipientName || '',
+      recipientAddress || '',
+      recipientPhone || ''
     ];
     
     products.forEach(function(p, idx) {
@@ -454,8 +508,8 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
 export function simulateExtraction(order: RmsOrderData, config: BookmarkletConfig): { tsv: string; headers: string[]; rows: string[][] } {
   const headers = config.includeHeader 
     ? (config.format === 'multi-rows' 
-        ? ['注文日', '受注番号', '注文者', '送り先（お届け先）', '商品名', '注文個数', 'メーカー記号（商品記号）']
-        : ['注文日', '受注番号', '注文者', '送り先（お届け先）', ...order.products.flatMap((_, idx) => [`商品名${idx+1}`, `注文個数${idx+1}`, `メーカー記号${idx+1}`])])
+        ? ['注文日', '受注番号', '注文者', '送り先（お届け先）', '送り先住所', '送り先電話番号', '商品名', '注文個数', 'メーカー記号（商品記号）']
+        : ['注文日', '受注番号', '注文者', '送り先（お届け先）', '送り先住所', '送り先電話番号', ...order.products.flatMap((_, idx) => [`商品名${idx+1}`, `注文個数${idx+1}`, `メーカー記号${idx+1}`])])
     : [];
 
   const gridRows: string[][] = [];
@@ -497,6 +551,8 @@ export function simulateExtraction(order: RmsOrderData, config: BookmarkletConfi
         order.orderNumber,
         order.ordererName,
         order.recipientName,
+        order.recipientAddress || '',
+        order.recipientPhone || '',
         p.name,
         String(p.qty),
         p.mfg
@@ -507,7 +563,9 @@ export function simulateExtraction(order: RmsOrderData, config: BookmarkletConfi
       order.orderDate,
       order.orderNumber,
       order.ordererName,
-      order.recipientName
+      order.recipientName,
+      order.recipientAddress || '',
+      order.recipientPhone || ''
     ];
     processedProducts.forEach(p => {
       rowValues.push(p.name);

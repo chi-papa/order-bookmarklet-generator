@@ -103,31 +103,29 @@ export default function RmsSimulator({ config }: RmsSimulatorProps) {
 
           {/* Main Simulated Document Frame */}
           <div className="p-6 bg-white overflow-x-auto min-h-[380px]">
-            {/* Header Table / Meta Box */}
-            <div className="border border-slate-200 rounded-xl mb-6 text-xs">
-              <div className="grid grid-cols-12 bg-slate-50 border-b border-slate-200 font-bold text-slate-800 py-2.5 px-4 uppercase tracking-wider">
-                <div className="col-span-6 border-r border-slate-200">受注番号・日時</div>
-                <div className="col-span-6 pl-4">注文ステータス</div>
+            {/* Header Table / Meta Box in RMS Style */}
+            <div className="border border-slate-200 rounded-xl mb-6 text-xs shadow-2xs">
+              <div className="bg-slate-50 border-b border-slate-200 font-bold text-[11px] text-slate-400 py-2 px-4 flex items-center justify-between">
+                <div>楽天市場 操作店舗伝票：詳細ステータス</div>
+                <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-bold border border-amber-200 text-[9px]">
+                  新規受付
+                </span>
               </div>
-              <div className="grid grid-cols-12 py-3 px-4 bg-white text-slate-600 gap-2">
-                <div className="col-span-6 border-r border-slate-200 pr-4 leading-relaxed">
-                  <div className="flex gap-2">
-                    <span className="text-slate-400 font-bold">【受注番号】</span>
-                    <span className="font-mono text-slate-900 font-bold">{activeOrder.orderNumber}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-slate-400 font-bold">【注文日時】</span>
-                    <span>{activeOrder.orderDate}</span>
-                  </div>
-                </div>
-                <div className="col-span-6 pl-4 flex items-center">
-                  <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100">新規受付</span>
-                  <span className="ml-2 text-slate-400">（お支払い手続き完了済み）</span>
+              <div className="py-3 px-4 bg-white text-slate-600 leading-relaxed">
+                <div className="pull-left flex flex-col gap-1.5 list-none">
+                  <li className="font-mono text-slate-900 font-bold flex items-center gap-2">
+                    <span className="bg-slate-100 text-slate-500 font-sans font-bold text-[9px] px-1.5 py-0.5 rounded-sm">受注番号</span>
+                    {activeOrder.orderNumber}
+                  </li>
+                  <li className="text-slate-600 flex items-center gap-2">
+                    <span className="bg-slate-100 text-slate-500 font-sans font-bold text-[9px] px-1.5 py-0.5 rounded-sm">注文日時</span>
+                    {activeOrder.orderDate}
+                  </li>
                 </div>
               </div>
             </div>
 
-            {/* Customer Details Box */}
+            {/* Customer Details Box in RMS Style */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-xs">
               {/* Orderer Card */}
               <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
@@ -135,21 +133,27 @@ export default function RmsSimulator({ config }: RmsSimulatorProps) {
                   👤 注文者情報
                 </div>
                 <div className="p-4 leading-relaxed text-slate-600">
-                  <div className="font-bold text-slate-900 text-sm mb-1">{activeOrder.ordererName} 様</div>
+                  <div className="font-bold text-slate-900 text-sm mb-1 rms-content-order-details-contact-info-names">
+                    {activeOrder.ordererName} 様
+                  </div>
                   <div className="font-mono text-[11px] text-slate-400">〒{activeOrder.ordererZip}</div>
                   <div className="text-slate-600 mt-1">{activeOrder.ordererAddress}</div>
+                  {activeOrder.ordererPhone && <div className="text-[10px] text-slate-400 mt-1">連絡先: {activeOrder.ordererPhone}</div>}
                 </div>
               </div>
 
-              {/* Recipient Card */}
-              <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
+              {/* Recipient Card - Has rms-row-wrapper wrapping class */}
+              <div className="border border-slate-200 rounded-xl bg-white overflow-hidden rms-row-wrapper">
                 <div className="bg-slate-50 px-4 py-2 font-bold border-b border-slate-200 text-slate-800 flex items-center gap-1.5">
                   📦 送付先（お届け先）情報
                 </div>
                 <div className="p-4 leading-relaxed text-slate-600">
-                  <div className="font-bold text-slate-900 text-sm mb-1">{activeOrder.recipientName} 様</div>
+                  <div className="font-bold text-slate-900 text-sm mb-1 rms-content-order-details-contact-info-names">
+                    {activeOrder.recipientName} 様
+                  </div>
                   <div className="font-mono text-[11px] text-slate-400">〒{activeOrder.recipientZip}</div>
-                  <div className="text-slate-600 mt-1">{activeOrder.recipientAddress}</div>
+                  <div className="text-slate-600 mt-1 address">{activeOrder.recipientAddress}</div>
+                  {activeOrder.recipientPhone && <div className="text-slate-900 mt-1 font-mono phone">{activeOrder.recipientPhone}</div>}
                 </div>
               </div>
             </div>

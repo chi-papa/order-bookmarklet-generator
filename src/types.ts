@@ -27,8 +27,10 @@ export interface RmsOrderData {
   ordererName: string;
   ordererZip: string;
   ordererAddress: string;
+  ordererPhone?: string;
   recipientName: string;
   recipientZip: string;
   recipientAddress: string;
+  recipientPhone?: string;
   products: ProductItem[];
 }

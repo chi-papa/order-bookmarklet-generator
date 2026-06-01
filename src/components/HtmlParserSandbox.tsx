@@ -23,6 +23,8 @@ interface ParsedOrderResult {
   orderDate: string;
   ordererName: string;
   recipientName: string;
+  recipientAddress?: string;
+  recipientPhone?: string;
   products: ParsedProduct[];
 }
 
@@ -151,14 +153,36 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
       }
 
       let recipientName = '';
-      const rcvSec = findVal(['送付先', 'お届け先', '配送先']);
-      if (rcvSec) {
-        const lines = rcvSec.split(/[\r\n]/).map(l => clean(l)).filter(Boolean);
-        recipientName = lines[0] || '';
-        if (recipientName.match(/^[\d〒\-]/)) {
-          recipientName = lines.find(l => !l.match(/^[\d〒\-\s]+$/) && l.indexOf('様') !== -1) || lines[1] || '';
+      let recipientAddress = '';
+      let recipientPhone = '';
+
+      // Try RMS latest query selector styles first
+      const wrapperEl = doc.querySelector('.rms-row-wrapper');
+      if (wrapperEl) {
+        const recEl = wrapperEl.querySelector('.rms-content-order-details-contact-info-names');
+        if (recEl) recipientName = clean(recEl.textContent || '').replace(/様.*$/, '').trim();
+
+        const addrEl = wrapperEl.querySelector('.address');
+        if (addrEl) recipientAddress = clean(addrEl.textContent || '');
+
+        const phoneEl = wrapperEl.querySelector('.phone');
+        if (phoneEl) recipientPhone = clean(phoneEl.textContent || '');
+      }
+
+      if (!recipientName) {
+        const rcvSec = findVal(['送付先', 'お届け先', '配送先']);
+        if (rcvSec) {
+          const lines = rcvSec.split(/[\r\n]/).map(l => clean(l)).filter(Boolean);
+          recipientName = lines[0] || '';
+          if (recipientName.match(/^[\d〒\-]/)) {
+            recipientName = lines.find(l => !l.match(/^[\d〒\-\s]+$/) && l.indexOf('様') !== -1) || lines[1] || '';
+          }
+          recipientName = recipientName.replace(/様.*$/, '').trim();
+
+          if (lines.length > 1) {
+            recipientAddress = lines.slice(1).join(' ').trim();
+          }
         }
-        recipientName = recipientName.replace(/様.*$/, '').trim();
       }
       if (!recipientName) {
         const el = doc.querySelector('.recipient-name, .delivery-name, [class*="recipient"] .name, [class*="delivery"] .name');
@@ -169,6 +193,22 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
         if (recipientName) recipientName = recipientName.split(/[（\(,\s]/)[0].replace(/様$/, '');
       }
       if (!recipientName) recipientName = ordererName; // fallback
+
+      if (!recipientAddress) {
+        const el = doc.querySelector('.recipient-address, .delivery-address, [class*="recipient"] .address, [class*="delivery"] .address, .address');
+        if (el) recipientAddress = clean(el.textContent || '');
+      }
+      if (!recipientAddress) {
+        recipientAddress = findVal(['送付先住所', 'お届け先住所', '住所']);
+      }
+
+      if (!recipientPhone) {
+        const el = doc.querySelector('.recipient-phone, .delivery-phone, [class*="recipient"] .phone, [class*="delivery"] .phone, .phone');
+        if (el) recipientPhone = clean(el.textContent || '');
+      }
+      if (!recipientPhone) {
+        recipientPhone = findVal(['送付先電話番号', 'お届け先電話番号', '電話番号', '電話', 'TEL', 'tel']);
+      }
 
       // Extract Items
       const products: ParsedProduct[] = [];
@@ -251,6 +291,8 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
           orderDate,
           ordererName,
           recipientName,
+          recipientAddress,
+          recipientPhone,
           products
         });
       }
@@ -266,9 +308,9 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
     const rowsArr: string[] = [];
     if (config.includeHeader) {
       if (config.format === 'multi-rows') {
-        rowsArr.push(['注文日', '受注番号', '注文者', '送り先（お届け先）', '商品名', '注文個数', 'メーカー記号（商品記号）'].join('\t'));
+        rowsArr.push(['注文日', '受注番号', '注文者', '送り先（お届け先）', '送り先住所', '送り先電話番号', '商品名', '注文個数', 'メーカー記号（商品記号）'].join('\t'));
       } else {
-        const hdrs = ['注文日', '受注番号', '注文者', '送り先（お届け先）'];
+        const hdrs = ['注文日', '受注番号', '注文者', '送り先（お届け先）', '送り先住所', '送り先電話番号'];
         parsedResult.products.forEach((_, i) => {
           hdrs.push(`商品名${i+1}`, `注文個数${i+1}`, `メーカー記号${i+1}`);
         });
@@ -283,6 +325,8 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
           parsedResult.orderNumber,
           parsedResult.ordererName,
           parsedResult.recipientName,
+          parsedResult.recipientAddress || '',
+          parsedResult.recipientPhone || '',
           p.name,
           String(p.qty),
           p.mfgCode
@@ -293,7 +337,9 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
         parsedResult.orderDate,
         parsedResult.orderNumber,
         parsedResult.ordererName,
-        parsedResult.recipientName
+        parsedResult.recipientName,
+        parsedResult.recipientAddress || '',
+        parsedResult.recipientPhone || ''
       ];
       parsedResult.products.forEach(p => {
         vals.push(p.name);
@@ -378,7 +424,7 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
             {parsedResult && (
               <div className="flex flex-col gap-4">
                 {/* Meta Summary */}
-                <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
                   <div>
                     <span className="text-slate-400 text-[10px] font-bold block">受注番号</span>
                     <span className="font-mono font-bold text-slate-900">{parsedResult.orderNumber ? parsedResult.orderNumber : '(検出不可: 手動補正推奨)'}</span>
@@ -387,14 +433,26 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
                     <span className="text-slate-400 text-[10px] font-bold block">日時</span>
                     <span className="font-mono font-bold text-slate-900">{parsedResult.orderDate ? parsedResult.orderDate : '(日時なし)'}</span>
                   </div>
-                  <div className="mt-2">
+                  <div className="mt-1">
                     <span className="text-slate-400 text-[10px] font-bold block">注文者</span>
                     <span className="font-bold text-slate-900">{parsedResult.ordererName ? `${parsedResult.ordererName}様` : '(検出不可)'}</span>
                   </div>
-                  <div className="mt-2 font-semibold">
+                  <div className="mt-1 font-semibold">
                     <span className="text-slate-400 text-[10px] font-bold block">送り先（お届け先）</span>
                     <span className="text-slate-900">{parsedResult.recipientName ? `${parsedResult.recipientName}様` : '(注文者と同一)'}</span>
                   </div>
+                  {parsedResult.recipientAddress && (
+                    <div className="col-span-2 mt-1 border-t border-slate-200/60 pt-2 text-[11px]">
+                      <span className="text-slate-400 text-[10px] font-bold block">送り先住所</span>
+                      <span className="text-slate-700 leading-normal">{parsedResult.recipientAddress}</span>
+                    </div>
+                  )}
+                  {parsedResult.recipientPhone && (
+                    <div className="col-span-2 text-[11px]">
+                      <span className="text-slate-400 text-[10px] font-bold block">送り先電話番号</span>
+                      <span className="text-slate-700 font-mono">{parsedResult.recipientPhone}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Items Extracted List */}

@@ -12,9 +12,11 @@ export const mockOrders: RmsOrderData[] = [
     ordererName: '山田 太郎',
     ordererZip: '150-0002',
     ordererAddress: '東京都渋谷区渋谷2-24-12 渋谷スクランブルスクエア',
+    ordererPhone: '090-1111-2222',
     recipientName: '山田 太郎',
     recipientZip: '150-0002',
     recipientAddress: '東京都渋谷区渋谷2-24-12 渋谷スクランブルスクエア',
+    recipientPhone: '090-1111-2222',
     products: [
       {
         id: 'p1',
@@ -31,9 +33,11 @@ export const mockOrders: RmsOrderData[] = [
     ordererName: '佐藤 美咲',
     ordererZip: '530-0001',
     ordererAddress: '大阪府大阪市北区梅田3丁目1-1',
+    ordererPhone: '090-5555-6666',
     recipientName: '鈴木 健二',
     recipientZip: '980-0021',
     recipientAddress: '宮城県仙台市青葉区中央1丁目1-1 仙台アパートメント 503号室',
+    recipientPhone: '080-9999-8888',
     products: [
       {
         id: 'p2-1',
@@ -64,9 +68,11 @@ export const mockOrders: RmsOrderData[] = [
     ordererName: '高橋 玲子',
     ordererZip: '460-0008',
     ordererAddress: '愛知県名古屋市中区栄3丁目1-1',
+    ordererPhone: '090-4444-5555',
     recipientName: '高橋 玲子',
     recipientZip: '460-0008',
     recipientAddress: '愛知県名古屋市中区栄3丁目1-1',
+    recipientPhone: '090-4444-5555',
     products: [
       {
         id: 'p3-1',
