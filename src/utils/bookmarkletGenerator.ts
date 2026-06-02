@@ -99,16 +99,84 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
     if (simpleDateMatch) orderDate = simpleDateMatch[1];
   }
 
-  // 3) Orderer Name (注文者)
+  // --- 3) & 4) 注文者とお届け先（送付先）名・住所・電話の抽出 ---
   var ordererName = '';
+  var recipientName = '';
+  var recipientAddress = '';
+  var recipientPhone = '';
+
+  // RMSの最新構造: .rms-content-order-details-contact-info-names が最大2つ並びます。
+  // 1つ目が注文者、2つ目が送付先（お届け先）
   var nameEls = document.querySelectorAll('.rms-content-order-details-contact-info-names');
   if (nameEls && nameEls.length > 0) {
     ordererName = cleanText(nameEls[0].textContent).replace(/様.*$/, '').trim();
+    if (nameEls.length > 1) {
+      recipientName = cleanText(nameEls[1].textContent).replace(/様.*$/, '').trim();
+    } else {
+      recipientName = ordererName;
+    }
   }
+
+  // 注文者とお届け先を分ける箱: .rms-content-order-details-contact-options
+  // 1つ目が注文者の詳細、2つ目が送付先の詳細
+  var contactOptionsEls = document.querySelectorAll('.rms-content-order-details-contact-options');
+
+  function extractAddressAndPhoneFromBox(box) {
+    if (!box) return { address: '', phone: '' };
+    var addr = '';
+    var ph = '';
+    
+    // 1) 住所: span.address や .address などを幅広くチェック
+    var addrEl = box.querySelector('span.address, .address, [class*="address"], address, span[class*="addr"]');
+    if (addrEl) {
+      addr = cleanText(addrEl.textContent);
+    }
+    
+    // 2) 電話番号: span.phone, .phone, .tel, span.tel などをチェック
+    var phoneEl = box.querySelector('span.phone, .phone, .tel, [class*="phone"], [class*="tel"]');
+    if (phoneEl) {
+      ph = cleanText(phoneEl.textContent);
+    }
+    
+    // 3) フォールバック（タグではなくテキスト解析）
+    var txt = box.textContent || '';
+    if (!addr) {
+      // 〒郵便番号の後に続く、都道府県名からの住所パターンを切り出し
+      var addrMatch = txt.match(/(?:〒\s*\d{3}-\d{4}\s*)?([都道府県].+?)(?:\s*連絡先|\s*TEL|\s*tel|\s*\d{2,5}-\d{2,5}-\d{4}|$)/i);
+      if (addrMatch) {
+        addr = cleanText(addrMatch[1]);
+      } else {
+        // 飾りを極力削って住所らしきテキストに仕上げる
+        var cleanTxt = txt.replace(/〒\s*\d{3}-\d{4}/g, '').trim();
+        var telMatch = cleanTxt.match(/\b\d{2,5}-\d{2,5}-\d{4}\b/);
+        if (telMatch) {
+          cleanTxt = cleanTxt.replace(telMatch[0], '').trim();
+        }
+        addr = cleanText(cleanTxt);
+      }
+    }
+    if (!ph) {
+      var phoneMatch = txt.match(/\b\d{2,5}-\d{2,5}-\d{4}\b/);
+      if (phoneMatch) {
+        ph = phoneMatch[0];
+      }
+    }
+    return { address: addr, phone: ph };
+  }
+
+  // contactOptionsEls[1] (お届け先) が存在すればそれを使用、なければ 1つ目を使用
+  if (contactOptionsEls && contactOptionsEls.length > 0) {
+    var recipientBox = contactOptionsEls.length > 1 ? contactOptionsEls[1] : contactOptionsEls[0];
+    var extracted = extractAddressAndPhoneFromBox(recipientBox);
+    recipientAddress = extracted.address;
+    recipientPhone = extracted.phone;
+  }
+
+  // --- 旧RMSや別セレクタによる既存フォールバック ---
   if (!ordererName) {
     var ordererSection = findValueByLabel(['注文者情報', '注文者']);
     if (ordererSection) {
-      ordererName = ordererSection.split(/[\\r\\n]/)[0].replace(/様.*$/, '').trim();
+      ordererName = ordererSection.split(/[\r\n]/)[0].replace(/様.*$/, '').trim();
     }
   }
   if (!ordererName) {
@@ -118,38 +186,35 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
   if (!ordererName) {
     ordererName = findValueByLabel(['注文者様', '注文者氏名', '注文者']);
     if (ordererName) {
-      ordererName = ordererName.split(/[（\\(,\\s]/)[0].replace(/様$/, '');
+      ordererName = ordererName.split(/[（\(,\s]/)[0].replace(/様$/, '');
     }
   }
 
-  // 4) Recipient / Destination Address/Name (送り先 / お届け先)
-  var recipientName = '';
-  var recipientAddress = '';
-  var recipientPhone = '';
-
   var wrapper = document.querySelector('.rms-row-wrapper');
-  if (wrapper) {
+  if (!recipientName && wrapper) {
     var recEl = wrapper.querySelector('.rms-content-order-details-contact-info-names');
     if (recEl) recipientName = cleanText(recEl.textContent).replace(/様.*$/, '').trim();
-    
-    var addrEl = wrapper.querySelector('.address');
-    if (addrEl) recipientAddress = cleanText(addrEl.textContent);
-    
-    var phoneEl = wrapper.querySelector('.phone');
-    if (phoneEl) recipientPhone = cleanText(phoneEl.textContent);
+    if (!recipientAddress) {
+      var addrEl = wrapper.querySelector('.address');
+      if (addrEl) recipientAddress = cleanText(addrEl.textContent);
+    }
+    if (!recipientPhone) {
+      var phoneEl = wrapper.querySelector('.phone');
+      if (phoneEl) recipientPhone = cleanText(phoneEl.textContent);
+    }
   }
 
   if (!recipientName) {
     var recipientDest = findValueByLabel(['送付先', 'お届け先', '配送先']);
     if (recipientDest) {
-      var lines = recipientDest.split(/[\\r\\n]/).map(line => cleanText(line)).filter(Boolean);
+      var lines = recipientDest.split(/[\r\n]/).map(line => cleanText(line)).filter(Boolean);
       recipientName = lines[0] || '';
-      if (recipientName.match(/^[\\d〒\\-]/)) {
-        recipientName = lines.find(line => !line.match(/^[\\d〒〒\\-\\s]+$/) && line.indexOf('様') !== -1) || lines[1] || '';
+      if (recipientName.match(/^[\d〒\-]/)) {
+        recipientName = lines.find(line => !line.match(/^[\d〒〒\-\s]+$/) && line.indexOf('様') !== -1) || lines[1] || '';
       }
       recipientName = recipientName.replace(/様.*$/, '').trim();
       
-      if (lines.length > 1) {
+      if (!recipientAddress && lines.length > 1) {
         recipientAddress = lines.slice(1).join(' ').replace(recipientPhone, '').trim();
       }
     }
@@ -161,7 +226,7 @@ export function generateBookmarkletCode(config: BookmarkletConfig): string {
   if (!recipientName) {
     recipientName = findValueByLabel(['送付先氏名', 'お届け先名', 'お届け先様', 'お届け先氏名']);
     if (recipientName) {
-      recipientName = recipientName.split(/[（\\(,\\s]/)[0].replace(/様$/, '');
+      recipientName = recipientName.split(/[（\(,\s]/)[0].replace(/様$/, '');
     }
   }
   if (!recipientName) {

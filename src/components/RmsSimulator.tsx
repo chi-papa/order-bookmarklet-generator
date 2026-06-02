@@ -136,14 +136,19 @@ export default function RmsSimulator({ config }: RmsSimulatorProps) {
                   <div className="font-bold text-slate-900 text-sm mb-1 rms-content-order-details-contact-info-names">
                     {activeOrder.ordererName} 様
                   </div>
-                  <div className="font-mono text-[11px] text-slate-400">〒{activeOrder.ordererZip}</div>
-                  <div className="text-slate-600 mt-1">{activeOrder.ordererAddress}</div>
-                  {activeOrder.ordererPhone && <div className="text-[10px] text-slate-400 mt-1">連絡先: {activeOrder.ordererPhone}</div>}
+                  {/* .rms-content-order-details-contact-options wrapper block to mimic real RMS */}
+                  <div className="rms-content-order-details-contact-options flex flex-col gap-1 mt-2 border-t border-slate-100 pt-2">
+                    <div className="font-mono text-[11px] text-slate-400">〒{activeOrder.ordererZip}</div>
+                    <div><span className="address text-slate-600">{activeOrder.ordererAddress}</span></div>
+                    {activeOrder.ordererPhone && (
+                      <div>連絡先: <span className="phone font-mono text-slate-900">{activeOrder.ordererPhone}</span></div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Recipient Card - Has rms-row-wrapper wrapping class */}
-              <div className="border border-slate-200 rounded-xl bg-white overflow-hidden rms-row-wrapper">
+              {/* Recipient Card */}
+              <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
                 <div className="bg-slate-50 px-4 py-2 font-bold border-b border-slate-200 text-slate-800 flex items-center gap-1.5">
                   📦 送付先（お届け先）情報
                 </div>
@@ -151,9 +156,14 @@ export default function RmsSimulator({ config }: RmsSimulatorProps) {
                   <div className="font-bold text-slate-900 text-sm mb-1 rms-content-order-details-contact-info-names">
                     {activeOrder.recipientName} 様
                   </div>
-                  <div className="font-mono text-[11px] text-slate-400">〒{activeOrder.recipientZip}</div>
-                  <div className="text-slate-600 mt-1 address">{activeOrder.recipientAddress}</div>
-                  {activeOrder.recipientPhone && <div className="text-slate-900 mt-1 font-mono phone">{activeOrder.recipientPhone}</div>}
+                  {/* .rms-content-order-details-contact-options wrapper block representing recipient */}
+                  <div className="rms-content-order-details-contact-options flex flex-col gap-1 mt-2 border-t border-slate-100 pt-2">
+                    <div className="font-mono text-[11px] text-slate-400">〒{activeOrder.recipientZip}</div>
+                    <div><span className="address text-slate-600">{activeOrder.recipientAddress}</span></div>
+                    {activeOrder.recipientPhone && (
+                      <div>連絡先: <span className="phone font-mono text-slate-900">{activeOrder.recipientPhone}</span></div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

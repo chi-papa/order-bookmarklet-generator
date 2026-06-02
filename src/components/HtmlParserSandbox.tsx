@@ -137,11 +137,73 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
         if (fall) orderDate = fall[1];
       }
 
-      // Extract Customer Names
+      // Extract Customer Names & Contact Options (Latest RMS Style)
       let ordererName = '';
-      const ordererSec = findVal(['注文者情報', '注文者']);
-      if (ordererSec) {
-        ordererName = ordererSec.split(/[\r\n]/)[0].replace(/様.*$/, '').trim();
+      let recipientName = '';
+      let recipientAddress = '';
+      let recipientPhone = '';
+
+      // 1) Names: .rms-content-order-details-contact-info-names
+      const nameEls = doc.querySelectorAll('.rms-content-order-details-contact-info-names');
+      if (nameEls && nameEls.length > 0) {
+        ordererName = clean(nameEls[0].textContent || '').replace(/様.*$/, '').trim();
+        if (nameEls.length > 1) {
+          recipientName = clean(nameEls[1].textContent || '').replace(/様.*$/, '').trim();
+        } else {
+          recipientName = ordererName;
+        }
+      }
+
+      // Helper to extract nested address and phone from contacts box
+      const extractBoxContact = (box: Element | null) => {
+        if (!box) return { addr: '', ph: '' };
+        let addr = '';
+        let ph = '';
+
+        const addrEl = box.querySelector('span.address, .address, [class*="address"], address, span[class*="addr"]');
+        if (addrEl) addr = clean(addrEl.textContent || '');
+
+        const phoneEl = box.querySelector('span.phone, .phone, .tel, [class*="phone"], [class*="tel"]');
+        if (phoneEl) ph = clean(phoneEl.textContent || '');
+
+        const txt = box.textContent || '';
+        if (!addr) {
+          const addrMatch = txt.match(/(?:〒\s*\d{3}-\d{4}\s*)?([都道府県].+?)(?:\s*連絡先|\s*TEL|\s*tel|\s*\d{2,5}-\d{2,5}-\d{4}|$)/i);
+          if (addrMatch) {
+            addr = clean(addrMatch[1]);
+          } else {
+            let cleanTxt = txt.replace(/〒\s*\d{3}-\d{4}/g, '').trim();
+            const telMatch = cleanTxt.match(/\b\d{2,5}-\d{2,5}-\d{4}\b/);
+            if (telMatch) {
+              cleanTxt = cleanTxt.replace(telMatch[0], '').trim();
+            }
+            addr = clean(cleanTxt);
+          }
+        }
+        if (!ph) {
+          const phoneMatch = txt.match(/\b\d{2,5}-\d{2,5}-\d{4}\b/);
+          if (phoneMatch) {
+            ph = phoneMatch[0];
+          }
+        }
+        return { addr, ph };
+      };
+
+      // 2) Contact Boxes: .rms-content-order-details-contact-options
+      const contactOptionsEls = doc.querySelectorAll('.rms-content-order-details-contact-options');
+      if (contactOptionsEls && contactOptionsEls.length > 0) {
+        const recipientBox = contactOptionsEls.length > 1 ? contactOptionsEls[1] : contactOptionsEls[0];
+        const extracted = extractBoxContact(recipientBox);
+        recipientAddress = extracted.addr;
+        recipientPhone = extracted.ph;
+      }
+
+      // --- Fallbacks for Older layout or other interfaces ---
+      if (!ordererName) {
+        const ordererSec = findVal(['注文者情報', '注文者']);
+        if (ordererSec) {
+          ordererName = ordererSec.split(/[\r\n]/)[0].replace(/様.*$/, '').trim();
+        }
       }
       if (!ordererName) {
         const el = doc.querySelector('.orderer-name, [class*="orderer"] .name, [class*="customer"] .name');
@@ -152,21 +214,20 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
         if (ordererName) ordererName = ordererName.split(/[（\(,\s]/)[0].replace(/様$/, '');
       }
 
-      let recipientName = '';
-      let recipientAddress = '';
-      let recipientPhone = '';
-
-      // Try RMS latest query selector styles first
       const wrapperEl = doc.querySelector('.rms-row-wrapper');
-      if (wrapperEl) {
+      if (!recipientName && wrapperEl) {
         const recEl = wrapperEl.querySelector('.rms-content-order-details-contact-info-names');
         if (recEl) recipientName = clean(recEl.textContent || '').replace(/様.*$/, '').trim();
 
-        const addrEl = wrapperEl.querySelector('.address');
-        if (addrEl) recipientAddress = clean(addrEl.textContent || '');
+        if (!recipientAddress) {
+          const addrEl = wrapperEl.querySelector('.address');
+          if (addrEl) recipientAddress = clean(addrEl.textContent || '');
+        }
 
-        const phoneEl = wrapperEl.querySelector('.phone');
-        if (phoneEl) recipientPhone = clean(phoneEl.textContent || '');
+        if (!recipientPhone) {
+          const phoneEl = wrapperEl.querySelector('.phone');
+          if (phoneEl) recipientPhone = clean(phoneEl.textContent || '');
+        }
       }
 
       if (!recipientName) {
@@ -179,7 +240,7 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
           }
           recipientName = recipientName.replace(/様.*$/, '').trim();
 
-          if (lines.length > 1) {
+          if (!recipientAddress && lines.length > 1) {
             recipientAddress = lines.slice(1).join(' ').trim();
           }
         }
