@@ -36,36 +36,69 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
 
   const testSamples = {
     simple: `
-      <div class="order-detail-container">
-        <table>
-          <tr><th>受注番号</th><td>887722-20260531-99887766</td></tr>
-          <tr><th>注文日時</th><td>2026/05/31 19:22:00</td></tr>
-          <tr><th>注文者氏名</th><td>東 京太郎 様</td></tr>
-          <tr><th>送付先氏名</th><td>北 海道美 様</td></tr>
-        </table>
-        <table class="item-table">
-          <thead>
-            <tr><th>商品名</th><th>商品番号</th><th>個数</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>お中元 特選国産ジュース詰め合わせパック</td>
-              <td>juice-gift-sum(SP-GIFT-A)</td>
-              <td>2</td>
-            </tr>
-            <tr>
-              <td>高級和菓子 竹籠10種セット</td>
-              <td>wagashi-ten-05（WAG-PREM）</td>
-              <td>1</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `
+<div class="order-detail-container">
+  <table>
+    <tr><th>受注番号</th><td>887722-20260531-99887766</td></tr>
+    <tr><th>注文日時</th><td>2026/05/31 19:22:00</td></tr>
+    <tr><th>注文者氏名</th><td>東 京太郎 様</td></tr>
+    <tr><th>送付先氏名</th><td>北 海道美 様</td></tr>
+  </table>
+  <table class="item-table">
+    <thead>
+      <tr><th>商品名</th><th>商品番号</th><th>個数</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>お中元 特選国産ジュース詰め合わせパック</td>
+        <td>juice-gift-sum(SP-GIFT-A)</td>
+        <td>2</td>
+      </tr>
+      <tr>
+        <td>高級和菓子 竹籠10種セット</td>
+        <td>wagashi-ten-05（WAG-PREM）</td>
+        <td>1</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`.trim(),
+    rmsLatest: `
+<div id="rms-order-page-sim">
+  <!-- 受注基本情報 -->
+  <div class="pull-left">
+    <li>受注番号: 254821-20260531-08170293</li>
+    <li>注文日時: 2026/05/31 18:30:15</li>
+  </div>
+
+  <!-- 最新RMS構造: 顧客名が連続して並びます（1番目が注文者、2番目がお届け先） -->
+  <div class="rms-content-order-details-contact-info-names">山田 太郎 様</div>
+  <div class="rms-content-order-details-contact-info-names">鈴木 健二 様</div>
+
+  <!-- 最新RMS構造: 詳細な連絡先ボックス（1番目が注文者、2番目がお届け先の住所・電話） -->
+  <div class="rms-content-order-details-contact-options">
+    <div class="zip font-mono text-slate-400">〒150-0002</div>
+    <div>住所: <span class="address">東京都渋谷区渋谷2-24-12 渋谷スクランブルスクエア</span></div>
+    <div>連絡先: <span class="phone font-mono">090-1111-2222</span></div>
+  </div>
+
+  <div class="rms-content-order-details-contact-options">
+    <div class="zip font-mono text-slate-400">〒980-0021</div>
+    <div>住所: <span class="address">宮城県仙台市青葉区中央1丁目1-1 仙台アパートメント 503号室</span></div>
+    <div>連絡先: <span class="phone font-mono">080-9999-8888</span></div>
+  </div>
+
+  <!-- 商品テーブル・リスト -->
+  <div class="goods-info mt-4 p-4 border border-slate-100 rounded-xl bg-slate-50/50">
+    <div class="goods-name font-bold text-slate-900">メンズ ストレッチ スキニーデニムパンツ カジュアル インディゴ</div>
+    <div class="goods-code text-indigo-600 font-mono mt-1">denim-skinny-02(M-IND)</div>
+    <div class="goods-count font-bold text-slate-800 text-right mt-2">2個</div>
+  </div>
+</div>
+`.trim()
   };
 
-  const handleLoadSample = () => {
-    setHtmlInput(testSamples.simple.trim());
+  const handleLoadSample = (type: 'simple' | 'rmsLatest') => {
+    setHtmlInput(testSamples[type]);
     setErrorStatus(null);
   };
 
@@ -439,12 +472,22 @@ export default function HtmlParserSandbox({ config }: HtmlParserSandboxProps) {
               <FileText className="w-4 h-4 text-slate-400" />
               対象画面のHTMLソース
             </h3>
-            <button
-              onClick={handleLoadSample}
-              className="text-indigo-600 font-bold hover:underline cursor-pointer"
-            >
-              サンプルHTMLを読み込む
-            </button>
+            <div className="flex gap-2.5 items-center text-[10px]">
+              <span className="text-slate-400 font-bold">サンプル読込:</span>
+              <button
+                onClick={() => handleLoadSample('simple')}
+                className="text-indigo-600 font-bold hover:underline cursor-pointer bg-indigo-50 px-2 py-1 rounded"
+              >
+                標準サンプル
+              </button>
+              <button
+                onClick={() => handleLoadSample('rmsLatest')}
+                className="text-emerald-700 font-bold hover:underline cursor-pointer bg-emerald-50 px-2 py-1 rounded flex items-center gap-0.5"
+              >
+                <Sparkles className="w-3 h-3 text-emerald-500 shrink-0" />
+                最新RMS(住所・電話付)
+              </button>
+            </div>
           </div>
           <textarea
             value={htmlInput}
